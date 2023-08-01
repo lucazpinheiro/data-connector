@@ -1,67 +1,24 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
-	"time"
 )
 
-// https://dummyjson.com/products
-type DummyProduct struct {
-	ID                 int      `json:"id"`
-	Title              string   `json:"title"`
-	Description        string   `json:"description"`
-	Price              int      `json:"price"`
-	DiscountPercentage float64  `json:"discountPercentage"`
-	Rating             float64  `json:"rating"`
-	Stock              int      `json:"stock"`
-	Brand              string   `json:"brand"`
-	Category           string   `json:"category"`
-	Thumbnail          string   `json:"thumbnail"`
-	Images             []string `json:"images"`
-}
-
-// https://api.escuelajs.co/api/v1/products
-type PlatziProduct struct {
-	ID          int       `json:"id"`
-	Title       string    `json:"title"`
-	Price       int       `json:"price"`
-	Description string    `json:"description"`
-	Images      []string  `json:"images"`
-	CreationAt  time.Time `json:"creationAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
-	Category    struct {
-		ID         int       `json:"id"`
-		Name       string    `json:"name"`
-		Image      string    `json:"image"`
-		CreationAt time.Time `json:"creationAt"`
-		UpdatedAt  time.Time `json:"updatedAt"`
-	} `json:"category"`
-}
-
-// https://fakestoreapi.com/products
-type FakeStoreProduct struct {
-	ID          int     `json:"id"`
-	Title       string  `json:"title"`
-	Price       float64 `json:"price"`
-	Description string  `json:"description"`
-	Category    string  `json:"category"`
-	Image       string  `json:"image"`
-	Rating      struct {
-		Rate  float64 `json:"rate"`
-		Count int     `json:"count"`
-	} `json:"rating"`
-}
-
 func main() {
-	getDummyProduct()
+	// dummyProducts := getDummyProducts()
+	// platziProducts := getPlatziProducts()
+	// fakeStoreProducts := getFakeStoreProducts()
+	ctx := context.Background()
+	produce(ctx)
 }
 
-func getDummyProduct() {
+func getDummyProducts() []BaseProduct {
 	resp, err := http.Get("https://dummyjson.com/products")
 
 	if err != nil {
@@ -69,12 +26,79 @@ func getDummyProduct() {
 		os.Exit(1)
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var products DummyAPIResponse
+	json.Unmarshal(data, &products)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var products []DummyProduct
+	parsedProducts := make([]BaseProduct, len(products.Products))
+
+	for i, product := range products.Products {
+		parsedProducts[i] = product.Parse()
+	}
+
+	return parsedProducts
+}
+
+func getPlatziProducts() []BaseProduct {
+	resp, err := http.Get("https://api.escuelajs.co/api/v1/products")
+
+	if err != nil {
+		fmt.Print(err.Error())
+		os.Exit(1)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var products []PlatziProduct
 	json.Unmarshal(data, &products)
-	fmt.Println(products)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	parsedProducts := make([]BaseProduct, len(products))
+	for i, product := range products {
+		parsedProducts[i] = product.Parse()
+	}
+
+	return parsedProducts
+}
+
+func getFakeStoreProducts() []BaseProduct {
+	resp, err := http.Get("https://fakestoreapi.com/products")
+
+	if err != nil {
+		fmt.Print(err.Error())
+		os.Exit(1)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var products []FakeStoreProduct
+	json.Unmarshal(data, &products)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	parsedProducts := make([]BaseProduct, len(products))
+	for i, product := range products {
+		parsedProducts[i] = product.Parse()
+	}
+
+	return parsedProducts
 }
