@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -11,7 +12,7 @@ import (
 
 // the topic and broker address are initialized as constants
 const (
-	topic  = "message-log"
+	topic  = "products"
 	broker = "localhost:29092"
 )
 
@@ -43,5 +44,30 @@ func produce(ctx context.Context) {
 		i++
 		// sleep for a second
 		time.Sleep(time.Second)
+	}
+}
+
+func createWriter() *kafka.Writer {
+	w := &kafka.Writer{
+		Addr:                   kafka.TCP(broker),
+		Topic:                  topic,
+		AllowAutoTopicCreation: true,
+	}
+	return w
+}
+
+func sendProduct(ctx context.Context, w *kafka.Writer, products []BaseProduct) {
+	var messages = make([]kafka.Message, len(products))
+	for i, p := range products {
+		serializedProduct, _ := json.Marshal(p)
+		messages[i] = kafka.Message{
+			Key:   []byte(fmt.Sprintf("%s:%d", p.Source, p.ID)),
+			Value: serializedProduct,
+		}
+	}
+
+	err := w.WriteMessages(ctx, messages...)
+	if err != nil {
+		panic("could not write message " + err.Error())
 	}
 }

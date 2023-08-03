@@ -15,7 +15,11 @@ func main() {
 	// platziProducts := getPlatziProducts()
 	// fakeStoreProducts := getFakeStoreProducts()
 	ctx := context.Background()
-	produce(ctx)
+	// produce(ctx)
+	// runEmitter()
+	// runProcessor()
+	writer := createWriter()
+	sendProduct(ctx, writer, getDummyProducts())
 }
 
 func getDummyProducts() []BaseProduct {
