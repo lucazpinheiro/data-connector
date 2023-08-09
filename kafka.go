@@ -4,53 +4,49 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
-	"time"
 
 	"github.com/segmentio/kafka-go"
 )
 
-// the topic and broker address are initialized as constants
+// the productTopic, sourceTopic and broker address are initialized as constants
 const (
-	topic  = "products"
-	broker = "localhost:29092"
+	sourceTopic  = "sources"
+	productTopic = "products"
+	broker       = "localhost:29092"
 )
 
-func produce(ctx context.Context) {
-	// initialize a counter
-	i := 0
-
-	// intialize the writer with the broker addresses, and the topic
-	w := kafka.NewWriter(kafka.WriterConfig{
+func createReader() *kafka.Reader {
+	r := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: []string{broker},
-		Topic:   topic,
+		Topic:   sourceTopic,
+		GroupID: "consumer-group-id",
 	})
+	return r
+}
 
+func readSource(ctx context.Context, r *kafka.Reader, ch chan ImportMessage) {
 	for {
-		// each kafka message has a key and value. The key is used
-		// to decide which partition (and consequently, which broker)
-		// the message gets published on
-		err := w.WriteMessages(ctx, kafka.Message{
-			Key: []byte(strconv.Itoa(i)),
-			// create an arbitrary message payload for the value
-			Value: []byte("this is message" + strconv.Itoa(i)),
-		})
+		m, err := r.ReadMessage(context.Background())
 		if err != nil {
-			panic("could not write message " + err.Error())
+			panic("could not read message " + err.Error())
 		}
 
-		// log a confirmation once the message is written
-		fmt.Println("writes:", i)
-		i++
-		// sleep for a second
-		time.Sleep(time.Second)
+		var sourcecMessage ImportMessage
+		json.Unmarshal(m.Value, &sourcecMessage)
+		if err != nil {
+			panic("could not unmarshal message " + err.Error())
+		}
+
+		ch <- sourcecMessage
+
+		fmt.Printf("message at offset %d: %s = %s\n", m.Offset, string(m.Key), string(m.Value))
 	}
 }
 
 func createWriter() *kafka.Writer {
 	w := &kafka.Writer{
 		Addr:                   kafka.TCP(broker),
-		Topic:                  topic,
+		Topic:                  productTopic,
 		AllowAutoTopicCreation: true,
 	}
 	return w

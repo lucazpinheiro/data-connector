@@ -11,15 +11,13 @@ import (
 )
 
 func main() {
-	// dummyProducts := getDummyProducts()
-	// platziProducts := getPlatziProducts()
-	// fakeStoreProducts := getFakeStoreProducts()
 	ctx := context.Background()
-	// produce(ctx)
-	// runEmitter()
-	// runProcessor()
-	writer := createWriter()
-	sendProduct(ctx, writer, getDummyProducts())
+
+	ch := make(chan ImportMessage, 4)
+	// writer := createWriter()
+	// sendProduct(ctx, writer, getDummyProducts())
+	reader := createReader()
+	readSource(ctx, reader, ch)
 }
 
 func getDummyProducts() []BaseProduct {
