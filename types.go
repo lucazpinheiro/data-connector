@@ -98,8 +98,3 @@ func (p *FakeStoreProduct) Parse() BaseProduct {
 		Images:      []string{p.Image},
 	}
 }
-
-type ImportMessage struct {
-	Source     string `json:"source"`
-	CatalogURL string `json:"catalog_url"`
-}
