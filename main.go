@@ -8,60 +8,49 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
+
+	"github.com/segmentio/kafka-go"
 )
 
 func main() {
-	ctx := context.Background()
-
 	writer := createWriter()
 
-	ch := make(chan BaseProduct)
+	queue := []string{"dummy", "fakestore", "platzi"}
 
-	// queue := []string{"dummy", "fakestore", "platzi"}
-	queue := []string{"dummy"}
-
+	var wg sync.WaitGroup
 	for _, source := range queue {
+		wg.Add(1)
 		go func(s string) {
-			importCatalog(s, ch)
+			defer wg.Done()
+			importCatalog(s, writer)
 		}(source)
 	}
-
-	go func() {
-		for {
-			p, ok := <-ch
-			if !ok {
-				break
-			}
-			fmt.Println(p.ID)
-			sendProduct(ctx, writer, p)
-		}
-		close(ch)
-	}()
-
-	// wg.Wait()
+	wg.Wait()
 	writer.Close()
 }
 
-func importCatalog(source string, ch chan<- BaseProduct) {
+func importCatalog(source string, w *kafka.Writer) {
+	ctx := context.Background()
 	switch source {
 	case "dummy":
 		log.Println("Importing dummy products")
-		importDummyProducts(ch)
+		importDummyProducts(ctx, w)
 		log.Println("Finished dummy products")
 	case "platzi":
 		log.Println("Importing platzi products")
-		importPlatziProducts(ch)
+		importPlatziProducts(ctx, w)
 		log.Println("Finished platzi products")
 	case "fakestore":
 		log.Println("Importing fakestore products")
-		importFakeStoreProducts(ch)
+		importFakeStoreProducts(ctx, w)
 		log.Println("Finished fakestore products")
 	default:
 		fmt.Printf("Invalid source %s\n", source)
 	}
 }
 
-func importDummyProducts(ch chan<- BaseProduct) {
+func importDummyProducts(ctx context.Context, w *kafka.Writer) {
 	resp, err := http.Get("https://dummyjson.com/products")
 
 	if err != nil {
@@ -81,11 +70,11 @@ func importDummyProducts(ch chan<- BaseProduct) {
 	}
 
 	for _, product := range products.Products {
-		ch <- product.Parse()
+		sendProduct(ctx, w, product.Parse())
 	}
 }
 
-func importPlatziProducts(ch chan<- BaseProduct) {
+func importPlatziProducts(ctx context.Context, w *kafka.Writer) {
 	resp, err := http.Get("https://api.escuelajs.co/api/v1/products")
 
 	if err != nil {
@@ -106,11 +95,11 @@ func importPlatziProducts(ch chan<- BaseProduct) {
 	}
 
 	for _, product := range products {
-		ch <- product.Parse()
+		sendProduct(ctx, w, product.Parse())
 	}
 }
 
-func importFakeStoreProducts(ch chan<- BaseProduct) {
+func importFakeStoreProducts(ctx context.Context, w *kafka.Writer) {
 	resp, err := http.Get("https://fakestoreapi.com/products")
 
 	if err != nil {
@@ -131,6 +120,6 @@ func importFakeStoreProducts(ch chan<- BaseProduct) {
 	}
 
 	for _, product := range products {
-		ch <- product.Parse()
+		sendProduct(ctx, w, product.Parse())
 	}
 }

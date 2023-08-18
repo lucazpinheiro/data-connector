@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -24,6 +25,7 @@ func createWriter() *kafka.Writer {
 }
 
 func sendProduct(ctx context.Context, w *kafka.Writer, p BaseProduct) {
+	log.Println(p.ID)
 	serializedProduct, _ := json.Marshal(p)
 	message := kafka.Message{
 		Key:   []byte(fmt.Sprintf("%s:%d", p.Source, p.ID)),
