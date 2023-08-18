@@ -17,50 +17,55 @@ func main() {
 
 	ch := make(chan BaseProduct)
 
-	queue := []string{"dummy", "fakestore"}
+	// queue := []string{"dummy", "fakestore", "platzi"}
+	queue := []string{"dummy"}
 
 	for _, source := range queue {
-		go importCatalog(source, ch)
+		go func(s string) {
+			importCatalog(s, ch)
+		}(source)
 	}
 
-	for product := range ch {
-		sendProduct(ctx, writer, product)
-	}
+	go func() {
+		for {
+			p, ok := <-ch
+			if !ok {
+				break
+			}
+			fmt.Println(p.ID)
+			sendProduct(ctx, writer, p)
+		}
+		close(ch)
+	}()
 
-	close(ch)
+	// wg.Wait()
+	writer.Close()
 }
 
 func importCatalog(source string, ch chan<- BaseProduct) {
 	switch source {
 	case "dummy":
 		log.Println("Importing dummy products")
-		importDummyProducts()
-		for _, product := range importDummyProducts() {
-			ch <- product
-		}
+		importDummyProducts(ch)
+		log.Println("Finished dummy products")
 	case "platzi":
 		log.Println("Importing platzi products")
-		importPlatziProducts()
-		for _, product := range importPlatziProducts() {
-			ch <- product
-		}
+		importPlatziProducts(ch)
+		log.Println("Finished platzi products")
 	case "fakestore":
 		log.Println("Importing fakestore products")
-		importFakeStoreProducts()
-		for _, product := range importFakeStoreProducts() {
-			ch <- product
-		}
+		importFakeStoreProducts(ch)
+		log.Println("Finished fakestore products")
 	default:
-		fmt.Println("Invalid source")
+		fmt.Printf("Invalid source %s\n", source)
 	}
 }
 
-func importDummyProducts() []BaseProduct {
+func importDummyProducts(ch chan<- BaseProduct) {
 	resp, err := http.Get("https://dummyjson.com/products")
 
 	if err != nil {
-		fmt.Print(err.Error())
-		os.Exit(1)
+		log.Fatal(err)
 	}
 
 	data, err := io.ReadAll(resp.Body)
@@ -75,16 +80,12 @@ func importDummyProducts() []BaseProduct {
 		log.Fatal(err)
 	}
 
-	parsedProducts := make([]BaseProduct, len(products.Products))
-
-	for i, product := range products.Products {
-		parsedProducts[i] = product.Parse()
+	for _, product := range products.Products {
+		ch <- product.Parse()
 	}
-
-	return parsedProducts
 }
 
-func importPlatziProducts() []BaseProduct {
+func importPlatziProducts(ch chan<- BaseProduct) {
 	resp, err := http.Get("https://api.escuelajs.co/api/v1/products")
 
 	if err != nil {
@@ -104,15 +105,12 @@ func importPlatziProducts() []BaseProduct {
 		log.Fatal(err)
 	}
 
-	parsedProducts := make([]BaseProduct, len(products))
-	for i, product := range products {
-		parsedProducts[i] = product.Parse()
+	for _, product := range products {
+		ch <- product.Parse()
 	}
-
-	return parsedProducts
 }
 
-func importFakeStoreProducts() []BaseProduct {
+func importFakeStoreProducts(ch chan<- BaseProduct) {
 	resp, err := http.Get("https://fakestoreapi.com/products")
 
 	if err != nil {
@@ -132,10 +130,7 @@ func importFakeStoreProducts() []BaseProduct {
 		log.Fatal(err)
 	}
 
-	parsedProducts := make([]BaseProduct, len(products))
-	for i, product := range products {
-		parsedProducts[i] = product.Parse()
+	for _, product := range products {
+		ch <- product.Parse()
 	}
-
-	return parsedProducts
 }
