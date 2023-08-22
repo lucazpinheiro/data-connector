@@ -12,5 +12,12 @@ Open kafka-ui on http://localhost:9091/
 ### Usage
 
 ```bash
-make run-app
+#build
+make build
+
+#run from go files
+make run-dev
+
+#run binary
+make run
 ```
