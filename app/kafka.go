@@ -37,3 +37,15 @@ func sendProduct(ctx context.Context, w *kafka.Writer, p BaseProduct) {
 		panic("could not write message " + err.Error())
 	}
 }
+
+func sendMessage(ctx context.Context, w *kafka.Writer, key string, data []byte) {
+	message := kafka.Message{
+		Key:   []byte(key),
+		Value: data,
+	}
+
+	err := w.WriteMessages(ctx, message)
+	if err != nil {
+		panic("could not write message " + err.Error())
+	}
+}
